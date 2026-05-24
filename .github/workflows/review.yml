@@ -1,0 +1,28 @@
+name: review
+on:
+  pull_request:
+    types: [opened, synchronize]
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+jobs:
+  review:
+    runs-on: [self-hosted, linux, server-b]
+    steps:
+      - uses: actions/checkout@v4
+      - name: claude review
+        id: rev
+        run: |
+          OUT=$(claude -p 'Output ONLY this JSON: {"verdict":"APPROVE","summary":"mock review","findings":[]}')
+          echo "$OUT" > /tmp/review.json
+          VERDICT=$(jq -r .verdict /tmp/review.json)
+          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
+      - name: post check
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          CONC=$([ "${{ steps.rev.outputs.verdict }}" = "APPROVE" ] && echo success || echo failure)
+          gh api repos/${{ github.repository }}/check-runs \
+            -X POST -F name=review-claude \
+            -F head_sha=${{ github.event.pull_request.head.sha }} \
+            -F status=completed -F conclusion=$CONC

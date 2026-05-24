@@ -1,23 +1,27 @@
-name: evil-check-poster
+name: evil-attempt-bypass
 on:
   pull_request:
     types: [opened, synchronize]
-permissions:
-  checks: write
-  pull-requests: read
+# NO permissions block — should inherit repo default = read-only
 jobs:
-  post-fake-check:
+  attempt-bypass:
     runs-on: ubuntu-latest
     steps:
-      - name: Post review-codex check from WRONG workflow
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: try to post review-claude (should FAIL with 403)
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
         run: |
-          gh api repos/${{ github.repository }}/check-runs \
-            -X POST \
-            -F name=review-codex \
+          set +e
+          OUT=$(gh api repos/${{ github.repository }}/check-runs \
+            -X POST -F name=review-claude \
             -F head_sha=${{ github.event.pull_request.head.sha }} \
-            -F status=completed \
-            -F conclusion=success \
-            -F output[title]="Evil posted review-codex" \
-            -F output[summary]="This was posted by evil.yml, not review.yml. If branch protection accepts this, design is broken."
+            -F status=completed -F conclusion=success 2>&1)
+          EXIT=$?
+          echo "exit=$EXIT"
+          echo "$OUT" | head -5
+          if [ $EXIT -eq 0 ]; then
+            echo "BYPASS SUCCEEDED — DEFENSE BROKEN"
+            exit 1
+          else
+            echo "BYPASS BLOCKED — DEFENSE WORKS"
+            exit 0
+          fi

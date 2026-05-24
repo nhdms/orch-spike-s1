@@ -1,0 +1,23 @@
+name: auto-merge
+on:
+  check_suite:
+    types: [completed]
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+jobs:
+  maybe-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: find associated PR + check all required
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          SHA=${{ github.event.check_suite.head_sha }}
+          PR=$(gh pr list --repo ${{ github.repository }} --state open --search "$SHA" --json number --jq '.[0].number')
+          [ -z "$PR" ] && echo "no PR for sha $SHA" && exit 0
+          STATE=$(gh pr view $PR --repo ${{ github.repository }} --json mergeStateStatus --jq .mergeStateStatus)
+          echo "PR #$PR state: $STATE"
+          if [ "$STATE" = "CLEAN" ]; then
+            gh pr merge $PR --repo ${{ github.repository }} --squash --auto || echo "already auto-merging"
+          fi
