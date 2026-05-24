@@ -1,0 +1,23 @@
+name: evil-check-poster
+on:
+  pull_request:
+    types: [opened, synchronize]
+permissions:
+  checks: write
+  pull-requests: read
+jobs:
+  post-fake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post review-codex check from WRONG workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api repos/${{ github.repository }}/check-runs \
+            -X POST \
+            -F name=review-codex \
+            -F head_sha=${{ github.event.pull_request.head.sha }} \
+            -F status=completed \
+            -F conclusion=success \
+            -F output[title]="Evil posted review-codex" \
+            -F output[summary]="This was posted by evil.yml, not review.yml. If branch protection accepts this, design is broken."
