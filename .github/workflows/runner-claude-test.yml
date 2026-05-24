@@ -1,0 +1,16 @@
+name: runner-claude-test
+on:
+  workflow_dispatch:
+  push:
+    branches: [runner-claude-test]
+jobs:
+  test-claude:
+    runs-on: [self-hosted, linux, server-b]
+    steps:
+      - name: simple ping
+        run: claude -p "Reply with exactly the word PONG and nothing else."
+      - name: structured json
+        run: |
+          OUT=$(claude -p 'Output ONLY: {"verdict":"APPROVE","summary":"runner test","findings":[]}')
+          echo "$OUT"
+          echo "$OUT" | jq '.verdict' || (echo "JSON parse failed"; exit 1)
